@@ -1,6 +1,5 @@
 import socket  
 import sys     
-import re
 
 def url_parse(url):
     scheme = ""
@@ -10,10 +9,10 @@ def url_parse(url):
     query = ""
     fragment = ""
 
-    # here im getting the scheme part of the url
+    # here I'm getting the scheme part of the URL
     pos = 0
-    while (True):
-        if (url[pos] == ':'):
+    while True:
+        if url[pos] == ':':
             pos += 3
             break
         
@@ -21,21 +20,21 @@ def url_parse(url):
         pos += 1
 
     ended = False
-    # here i get the host and port
+    # here I get the host and port
     in_port_section = False
-    while (True):
-        if (pos == len(url)):
+    while True:
+        if pos == len(url):
             ended = True
             break
 
-        elif (url[pos] == '/'):
+        elif url[pos] == '/':
             pos += 1
             break
         
-        elif (url[pos] == ":"):
+        elif url[pos] == ":":
             in_port_section = True
 
-        elif (in_port_section):
+        elif in_port_section:
             port += url[pos]
 
         else:
@@ -43,67 +42,60 @@ def url_parse(url):
         
         pos += 1
 
-    if (scheme == "http" and port == ""):
+    if scheme == "http" and port == "":
         port = "80"
 
-    elif (scheme == "https" and port == ""):
+    elif scheme == "https" and port == "":
         port = "443"
 
-    elif (scheme == "ftp" and port == ""):
+    elif scheme == "ftp" and port == "":
         port = "21"
 
-
-    if (ended):
+    if ended:
         return [scheme, host, port, path, query, fragment]
 
-    # here i get the path
-    while (True):
-        if (pos == len(url)):
+    # here I get the path
+    while True:
+        if pos == len(url):
             ended = True
             break
 
-        elif (url[pos] == "?"):
+        elif url[pos] == "?":
             pos += 1
             break
         
         path += url[pos]
         pos += 1
 
-    if (ended):
+    if ended:
         return [scheme, host, port, path, query, fragment]
 
-    # here i get the query
-    while (True):
-        if (pos == len(url)):
+    # here I get the query
+    while True:
+        if pos == len(url):
             ended = True
             break
 
-        elif (url[pos] == "#"):
+        elif url[pos] == "#":
             pos += 1
             break
         
         query += url[pos]
         pos += 1
     
-    if (ended):
+    if ended:
         return [scheme, host, port, path, query, fragment]
 
-    # here i get the fragment 
-
-    while (True):
-        if (pos == len(url)):
+    # here I get the fragment 
+    while True:
+        if pos == len(url):
             ended = True
             break
 
-        elif (url[pos] == "#"):
-            pos += 1
-            break
-        
         fragment += url[pos]
         pos += 1
     
-    if (ended):
-        return [scheme, host, port, path, query, fragment]
+    return [scheme, host, port, path, query, fragment]
     
 def create_and_connect_socket(host, port):
     # Initialization of socket
@@ -112,11 +104,25 @@ def create_and_connect_socket(host, port):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         
         # Connection to the server
-        s.connect((host, port))
+        s.connect((host, int(port)))
         return s
     except Exception as e:
         print(f"Error: {e}")
         sys.exit(1)
+
+def request(host, path):
+    if not path:
+        path = "/"
+    elif not path.startswith("/"):
+        path = "/" + path
+    return f"GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n"
+
+
+def get_the_body(website_response):
+    delimiter = "<"
+    index = website_response.find(delimiter) - 1
+    print(website_response[index + len(delimiter):])
+
 
 def main():
     url = ""
@@ -126,16 +132,36 @@ def main():
             
     else:
         print("No arguments were passed.")
+        sys.exit(1)
 
-    # parsing the url
-    parsed_url = url_parse(url)
+    # parsing the URL
+    scheme, host, port, path, query, fragment = url_parse(url)
 
     # creating the socket
-    socket = create_and_connect_socket(parsed_url[1], parsed_url[2])
-
+    client_socket = create_and_connect_socket(host, port)
     
+    request_str = request(host, path)
 
+    # Send the HTTP GET request
+    client_socket.sendall(request_str.encode())
 
+    # Receive the response
+    # intialized a byte string
+    response = b""
+    while True:
+        # reciving upto 4096 bytes of data
+        chunk = client_socket.recv(4096)
+        if not chunk:
+            break
+        response += chunk
+
+    # Close the socket
+    client_socket.close()
+
+    # Print the response (for now, print the full response to understand it)
+    website_response = response.decode()
+
+    get_the_body(website_response)
 
 
 if __name__ == "__main__":
